@@ -390,31 +390,32 @@ function revealOpeningBrand(onComplete) {
   const y = (window.innerHeight - target.height) / 2 - target.top;
   const scale = Math.min(2.45, (window.innerWidth - 48) / target.width);
   const centered = 'translate(' + x + 'px, ' + y + 'px) scale(' + scale + ')';
+  const duration = 1_750;
+  const skipEvents = ['resize', 'keydown', 'pointerdown', 'scroll'];
 
   overlay.style.setProperty('--brand-header-edge', header.getBoundingClientRect().bottom + 'px');
+  overlay.style.setProperty('--brand-intro-duration', duration + 'ms');
   document.documentElement.classList.add('brand-revealing');
   overlay.hidden = false;
   const flight = mark.animate([
-    { opacity: 0, transform: centered + ' scale(.9)', offset: 0 },
-    { opacity: 1, transform: centered, offset: 0.25 },
-    { opacity: 1, transform: centered, offset: 0.42 },
+    { opacity: 0, transform: centered + ' scale(.9)', offset: 0, easing: 'ease-out' },
+    { opacity: 1, transform: centered, offset: 0.17 },
+    { opacity: 1, transform: centered, offset: 0.72, easing: 'cubic-bezier(.24,.74,.24,1)' },
     { opacity: 1, transform: 'translate(0, 0) scale(1)', offset: 1 }
-  ], { duration: 1120, easing: 'cubic-bezier(.24,.74,.24,1)', fill: 'both' });
+  ], { duration, fill: 'both' });
 
   function finishReveal() {
     if (overlay.hidden) return;
     overlay.hidden = true;
     document.documentElement.classList.remove('brand-revealing');
-    window.removeEventListener('resize', finishReveal);
-    window.removeEventListener('keydown', finishReveal);
+    for (const event of skipEvents) window.removeEventListener(event, finishReveal);
     hero.classList.add('hero-enter');
     flight.cancel();
     onComplete();
   }
 
   flight.finished.then(finishReveal, finishReveal);
-  window.addEventListener('resize', finishReveal, { once: true });
-  window.addEventListener('keydown', finishReveal, { once: true });
+  for (const event of skipEvents) window.addEventListener(event, finishReveal, { once: true, passive: true });
 }
 
 function animateImpactNumbers(impact) {

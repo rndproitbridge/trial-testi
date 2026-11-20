@@ -576,7 +576,7 @@ details[open]>p{animation:rise .24s ease-out}
   position: absolute;
   inset: var(--brand-header-edge, 0px) 0 0;
   background: var(--navy);
-  animation: brand-intro-backdrop 1.12s ease both;
+  animation: brand-intro-backdrop var(--brand-intro-duration) ease both;
 }
 .brand-intro-logo {
   position: absolute;
@@ -589,7 +589,7 @@ details[open]>p{animation:rise .24s ease-out}
 .brand-revealing .hero-title,
 .brand-revealing .hero-copy { opacity: 0; }
 @keyframes brand-intro-backdrop {
-  0%, 35% { opacity: 1; }
+  0%, 72% { opacity: 1; }
   100% { opacity: 0; }
 }
 
