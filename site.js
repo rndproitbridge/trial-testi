@@ -29,6 +29,8 @@ filterButtons.forEach((button) => {
     showStories(button.dataset.filter);
     requestAnimationFrame(() => {
       stories.filter((story) => !story.hidden).forEach((story, index) => {
+        if (story.classList.contains('reveal-pending')) return;
+        story.classList.remove('scroll-revealed');
         story.style.setProperty('--story-delay', index * 45 + 'ms');
         story.classList.add('motion-in');
       });
@@ -146,7 +148,24 @@ revealLinkedStory();
 
 const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
+const header = document.querySelector('.header');
+const menuToggle = header.querySelector('.menu-toggle');
+const siteNavigation = document.getElementById('site-navigation');
+const mobileHeader = window.matchMedia('(max-width: 950px)');
 const menus = [...document.querySelectorAll('.nav-group')];
+function setMobileMenu(expanded) {
+  menuToggle.setAttribute('aria-expanded', String(expanded));
+  if (!expanded) menus.forEach((menu) => { menu.open = false; });
+}
+menuToggle.hidden = false;
+menuToggle.addEventListener('click', () => {
+  setMobileMenu(menuToggle.getAttribute('aria-expanded') === 'false');
+});
+mobileHeader.addEventListener('change', () => {
+  const restoreFocus = mobileHeader.matches && siteNavigation.contains(document.activeElement);
+  setMobileMenu(false);
+  if (restoreFocus) menuToggle.focus();
+});
 menus.forEach((menu) => {
   menu.addEventListener('toggle', () => {
     if (menu.open) menus.filter((other) => other !== menu).forEach((other) => { other.open = false; });
@@ -154,14 +173,30 @@ menus.forEach((menu) => {
 });
 document.addEventListener('click', (event) => {
   menus.filter((menu) => !menu.contains(event.target)).forEach((menu) => { menu.open = false; });
+  if (!header.contains(event.target)) setMobileMenu(false);
+});
+siteNavigation.addEventListener('click', (event) => {
+  if (mobileHeader.matches && event.target.closest('a')) setMobileMenu(false);
 });
 document.addEventListener('keydown', (event) => {
-  if (event.key !== 'Escape') return;
-  menus.filter((menu) => menu.open).forEach((menu) => {
-    menu.open = false;
-    menu.querySelector('summary').focus();
-  });
+  if (event.key !== 'Escape' || document.querySelector('dialog[open]')) return;
+  const openMenu = menus.find((menu) => menu.open);
+  if (openMenu) {
+    openMenu.open = false;
+    openMenu.querySelector('summary').focus();
+  } else if (mobileHeader.matches && menuToggle.getAttribute('aria-expanded') === 'true') {
+    setMobileMenu(false);
+    menuToggle.focus();
+  }
 });
+
+const footerNavigation = document.querySelector('.footer-navigation');
+const mobileFooter = window.matchMedia('(max-width: 720px)');
+function updateFooterMenu() {
+  footerNavigation.open = !mobileFooter.matches;
+}
+mobileFooter.addEventListener('change', updateFooterMenu);
+updateFooterMenu();
 
 const enquiry = document.getElementById('enquiry');
 document.querySelectorAll('[data-enquire]').forEach((link) => {
@@ -238,7 +273,27 @@ const hero = document.querySelector('.hero');
 const readingProgress = document.querySelector('.reading-progress');
 const readingBar = readingProgress.querySelector('span');
 const scroller = document.scrollingElement || document.documentElement;
+const methodSteps = document.querySelector('.method-steps');
+const methodStages = [...methodSteps.querySelectorAll('.method-stage')];
+let activeMethodStage = -1;
 let scrollFrame = null;
+
+function updateMethodProgress(viewportHeight) {
+  const bounds = methodSteps.getBoundingClientRect();
+  if (bounds.bottom <= 0 || bounds.top >= viewportHeight) return;
+
+  const readingLine = Math.min(260, viewportHeight * .42);
+  let index = 0;
+  for (const [position, stage] of methodStages.entries()) {
+    if (stage.getBoundingClientRect().top <= readingLine) index = position;
+  }
+  if (activeMethodStage === index) return;
+
+  methodStages[activeMethodStage]?.classList.remove('is-current');
+  methodStages[index].classList.add('is-current');
+  methodSteps.style.setProperty('--method-progress', (index + 1) / methodStages.length);
+  activeMethodStage = index;
+}
 
 function updateScrollState() {
   scrollFrame = null;
@@ -247,6 +302,7 @@ function updateScrollState() {
   const viewportHeight = scroller.clientHeight || window.innerHeight;
   const scrollDistance = scroller.scrollHeight - viewportHeight;
   const progress = scrollDistance > 0 ? Math.min(1, scrollTop / scrollDistance) : 0;
+  updateMethodProgress(viewportHeight);
   readingBar.style.transform = 'scaleX(' + progress + ')';
 }
 
@@ -314,7 +370,7 @@ function revealOpeningBrand(onComplete) {
 
   const overlay = document.querySelector('.brand-intro');
   const mark = overlay.querySelector('.brand-intro-logo');
-  const brand = document.querySelector('.header .brand');
+  const brand = header.querySelector('.brand');
   const target = brand.getBoundingClientRect();
 
   if (typeof mark.animate !== 'function' || !target.width || !target.height) {
@@ -335,6 +391,7 @@ function revealOpeningBrand(onComplete) {
   const scale = Math.min(2.45, (window.innerWidth - 48) / target.width);
   const centered = 'translate(' + x + 'px, ' + y + 'px) scale(' + scale + ')';
 
+  overlay.style.setProperty('--brand-header-edge', header.getBoundingClientRect().bottom + 'px');
   document.documentElement.classList.add('brand-revealing');
   overlay.hidden = false;
   const flight = mark.animate([
